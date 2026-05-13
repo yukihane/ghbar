@@ -37,4 +37,4 @@ SwiftBar の Plugin Folder には `~/.config/swiftbar/plugins` を指定して�
 
 ## License
 
-MIT
+[GPLv3](./LICENSE)
