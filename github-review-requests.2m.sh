@@ -31,6 +31,24 @@ fi
 
 COUNT=$(echo "$JSON" | jq 'length')
 
+# 前回件数を読み込んで、増えていれば音 + 通知センターで知らせる
+STATE_DIR="${HOME}/.cache/ghbar"
+STATE_FILE="${STATE_DIR}/last_count"
+mkdir -p "$STATE_DIR"
+PREV_COUNT=$(cat "$STATE_FILE" 2>/dev/null || echo 0)
+# 数値でなければ 0 にフォールバック
+[[ "$PREV_COUNT" =~ ^[0-9]+$ ]] || PREV_COUNT=0
+
+if [ "$COUNT" -gt "$PREV_COUNT" ]; then
+  DIFF=$((COUNT - PREV_COUNT))
+  # システム音 (Glass) を鳴らす
+  afplay /System/Library/Sounds/Glass.aiff >/dev/null 2>&1 &
+  # 通知センターに表示
+  osascript -e "display notification \"レビュー依頼が ${DIFF} 件増えました (合計 ${COUNT} 件)\" with title \"GitHub Review Requests\" sound name \"Glass\"" >/dev/null 2>&1 &
+fi
+
+echo "$COUNT" > "$STATE_FILE"
+
 # 件数に応じて色を変える
 if [ "$COUNT" -eq 0 ]; then
   COLOR="gray"

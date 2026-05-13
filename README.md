@@ -12,6 +12,7 @@ GitHub でレビュー依頼されている Open PR の件数と一覧を macOS 
 - `owner/repo • author` をサブ行に表示
 - 「GitHub で全部見る」リンクと Refresh ボタン
 - 2 分ごとに自動更新
+- **件数が増えたときに音 (Glass) + 通知センターで知らせる**（前回件数は `~/.cache/ghbar/last_count` に保存）
 
 ## 必要なもの
 
