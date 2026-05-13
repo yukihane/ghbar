@@ -2,8 +2,6 @@
 
 GitHub でレビュー依頼されている Open PR の件数と一覧を macOS メニューバーに常時表示する [SwiftBar](https://github.com/swiftbar/SwiftBar) プラグインです。
 
-![menubar example](https://img.shields.io/badge/menubar-PR%3A3-orange)
-
 ## 機能
 
 - メニューバーに件数を表示（例: `PR:3`）
