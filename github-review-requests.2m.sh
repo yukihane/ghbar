@@ -31,6 +31,34 @@ fi
 
 COUNT=$(echo "$JSON" | jq 'length')
 
+# 自分がレビュー提出済みだが最新レビューが COMMENTED の PR（approve/request_changes 未実施）を取得
+ME=$(gh api user --jq .login 2>/dev/null)
+PENDING_JSON="[]"
+if [ -n "$ME" ]; then
+  REVIEWED_JSON=$(gh search prs --reviewed-by=@me --state=open \
+    --json title,url,repository,author,number \
+    --limit 50 2>/dev/null)
+  if [ -n "$REVIEWED_JSON" ]; then
+    # review-requested に含まれる URL は除外（再依頼ケース）
+    REQUESTED_URLS=$(echo "$JSON" | jq -r '.[].url')
+    PENDING_JSON=$(echo "$REVIEWED_JSON" | jq -c --arg me "$ME" '.[] | select(.author.login != $me)' | while read -r row; do
+      URL=$(echo "$row" | jq -r .url)
+      if echo "$REQUESTED_URLS" | grep -qx "$URL"; then
+        continue
+      fi
+      REPO=$(echo "$row" | jq -r .repository.nameWithOwner)
+      NUM=$(echo "$row" | jq -r .number)
+      LAST_STATE=$(gh api "repos/${REPO}/pulls/${NUM}/reviews" \
+        --jq "[.[] | select(.user.login==\"${ME}\")] | last | .state" 2>/dev/null)
+      if [ "$LAST_STATE" = "COMMENTED" ]; then
+        echo "$row"
+      fi
+    done | jq -s '.')
+    [ -z "$PENDING_JSON" ] && PENDING_JSON="[]"
+  fi
+fi
+PENDING_COUNT=$(echo "$PENDING_JSON" | jq 'length')
+
 # 前回件数を読み込んで、増えていれば音 + 通知センターで知らせる
 STATE_DIR="${HOME}/.cache/ghbar"
 STATE_FILE="${STATE_DIR}/last_count"
@@ -50,7 +78,7 @@ fi
 echo "$COUNT" > "$STATE_FILE"
 
 # 件数に応じて色を変える
-if [ "$COUNT" -eq 0 ]; then
+if [ "$COUNT" -eq 0 ] && [ "$PENDING_COUNT" -eq 0 ]; then
   COLOR="gray"
 elif [ "$COUNT" -ge 5 ]; then
   COLOR="red"
@@ -58,25 +86,40 @@ else
   COLOR="orange"
 fi
 
-# メニューバー表示
-echo "PR:${COUNT} | color=${COLOR}"
+# メニューバー表示（保留分が 0 のときは +N を省く）
+if [ "$PENDING_COUNT" -gt 0 ]; then
+  BADGE="PR:${COUNT}+${PENDING_COUNT}"
+else
+  BADGE="PR:${COUNT}"
+fi
+echo "${BADGE} | color=${COLOR}"
 echo "---"
 
 # 全部見るリンク
 echo "GitHub で全部見る | href=${SEARCH_URL}"
 echo "---"
 
-# 各 PR を 2 行ずつ出力
+# レビュー依頼セクション
+echo "レビュー依頼 (${COUNT}) | size=11 color=gray"
 if [ "$COUNT" -gt 0 ]; then
   echo "$JSON" | jq -r '.[] | [.title, .url, .repository.nameWithOwner, .author.login] | @tsv' \
     | while IFS=$'\t' read -r TITLE URL REPO AUTHOR; do
-        # 1行目: タイトル（クリックでブラウザを開く）
         echo "${TITLE} | href=${URL}"
-        # 2行目: リポジトリ • 著者（小さくグレー）
         echo "${REPO} • ${AUTHOR} | size=11 color=gray href=${URL}"
       done
 else
-  echo "レビュー依頼中の PR はありません | color=gray"
+  echo "なし | color=gray"
+fi
+
+# コメント保留セクション（approve/request_changes 未実施）
+if [ "$PENDING_COUNT" -gt 0 ]; then
+  echo "---"
+  echo "コメント保留 (${PENDING_COUNT}) | size=11 color=gray"
+  echo "$PENDING_JSON" | jq -r '.[] | [.title, .url, .repository.nameWithOwner, .author.login] | @tsv' \
+    | while IFS=$'\t' read -r TITLE URL REPO AUTHOR; do
+        echo "${TITLE} | href=${URL}"
+        echo "${REPO} • ${AUTHOR} | size=11 color=gray href=${URL}"
+      done
 fi
 
 echo "---"
