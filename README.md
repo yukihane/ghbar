@@ -23,13 +23,15 @@ GitHub でレビュー依頼されている Open PR の件数と一覧を macOS 
 ## インストール
 
 ```sh
-git clone https://github.com/<your-account>/ghbar.git ~/repos/ghbar
+# ~/repos にcheckoutする場合の例
+mkdir -p ~/repos
+git clone https://github.com/yukihane/ghbar.git ~/repos/ghbar
 mkdir -p ~/.config/swiftbar/plugins
 ln -s ~/repos/ghbar/github-review-requests.2m.sh \
       ~/.config/swiftbar/plugins/github-review-requests.2m.sh
 ```
 
-SwiftBar の Plugin Folder には `~/.config/swiftbar/plugins` を指定してください。
+SwiftBar初回起動時、Plugin Folder を聞かれますが、上記で作成した `~/.config/swiftbar/plugins` を指定してください。
 
 ## カスタマイズ
 
