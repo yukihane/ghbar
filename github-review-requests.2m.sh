@@ -14,7 +14,7 @@ SEARCH_URL="https://github.com/search?q=review-requested%3A%40me+is%3Apr+is%3Aop
 
 # gh でレビュー依頼中の Open PR を取得（JSON）
 JSON=$(gh search prs --review-requested=@me --state=open \
-  --json title,url,repository,author \
+  --json title,url,repository,author,isDraft \
   --limit 50 2>/dev/null)
 GH_EXIT=$?
 
@@ -29,7 +29,8 @@ if [ $GH_EXIT -ne 0 ] || [ -z "$JSON" ]; then
   exit 0
 fi
 
-COUNT=$(echo "$JSON" | jq 'length')
+ALL_COUNT=$(echo "$JSON" | jq 'length')
+COUNT=$(echo "$JSON" | jq '[.[] | select(.isDraft == false)] | length')
 
 # 自分がレビュー提出済みだが最新レビューが COMMENTED の PR（approve/request_changes 未実施）を取得
 ME=$(gh api user --jq .login 2>/dev/null)
@@ -100,11 +101,15 @@ echo "GitHub で全部見る | href=${SEARCH_URL}"
 echo "---"
 
 # レビュー依頼セクション
-echo "レビュー依頼 (${COUNT}) | size=11 color=gray"
-if [ "$COUNT" -gt 0 ]; then
-  echo "$JSON" | jq -r '.[] | [.title, .url, .repository.nameWithOwner, .author.login] | @tsv' \
-    | while IFS=$'\t' read -r TITLE URL REPO AUTHOR; do
-        echo "${TITLE} | href=${URL}"
+echo "レビュー依頼 (${ALL_COUNT}) | size=11 color=gray"
+if [ "$ALL_COUNT" -gt 0 ]; then
+  echo "$JSON" | jq -r '.[] | [.title, .url, .repository.nameWithOwner, .author.login, (.isDraft|tostring)] | @tsv' \
+    | while IFS=$'\t' read -r TITLE URL REPO AUTHOR ISDRAFT; do
+        if [ "$ISDRAFT" = "true" ]; then
+          echo "${TITLE} [Draft] | href=${URL} color=gray"
+        else
+          echo "${TITLE} | href=${URL}"
+        fi
         echo "${REPO} • ${AUTHOR} | size=11 color=gray href=${URL}"
       done
 else
