@@ -56,7 +56,7 @@ jq -n '
     comments: {nodes: (if $comment then [{url: ("line/" + $login)}] else [] end)}
   };
   {data: {parent: {items: page([{
-    id: "pr1", title: "Draft PR", url: "pull/1", author: {login: "me"},
+    id: "pr1", title: "Feedback PR", isDraft: true, url: "pull/1", author: {login: "me"},
     reviews: page([
       review("alice"; "CHANGES_REQUESTED"; "01"; false),
       review("bob"; "COMMENTED"; "01"; true),
@@ -68,7 +68,7 @@ jq -n '
   }]; "prs-2")}}}' > "$work_dir/prs-1"
 
 jq -n '{data: {parent: {items: {nodes: [{
-  id: "pr2", title: "Conversation only", url: "pull/2", author: {login: "me"},
+  id: "pr2", title: "Conversation only", isDraft: false, url: "pull/2", author: {login: "me"},
   reviews: {nodes: [], pageInfo: {hasNextPage: false}},
   events: {nodes: [], pageInfo: {hasNextPage: false}}
 }], pageInfo: {hasNextPage: false}}}}}' > "$work_dir/prs-2"
@@ -83,6 +83,13 @@ jq -n '{data: {parent: {items: {nodes: [
   {__typename: "ReviewRequestedEvent", actor: {login: "someone-else"}, requestedReviewer: {login: "bob"}, createdAt: "02"}
 ], pageInfo: {hasNextPage: false}}}}}' > "$work_dir/events-2"
 
+# The same feedback becomes visible on the first refresh after leaving draft.
+output=$(render)
+expect_line 'REV:0+1 | color=orange'
+reject_text 'Feedback PR'
+reject_text '@bob'
+jq '.data.parent.items.nodes[0].isDraft = false' "$work_dir/prs-1" > "$work_dir/ready"
+mv "$work_dir/ready" "$work_dir/prs-1"
 output=$(render)
 expect_line 'REV:0+1 FIX:1 | color=orange'
 expect_line '@bob | size=11 color=gray href=line/bob'

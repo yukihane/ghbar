@@ -40,13 +40,13 @@ authored_prs_with_reviews() {
   local events="timelineItems(first: 50, itemTypes: $event_types) { $page_info nodes { $event_fields } }"
   local pr_query="query(\$after: String) {
     parent: viewer { items: pullRequests(first: 20, after: \$after, states: OPEN) {
-      $page_info nodes { id title url author { login } $reviews events: $events }
+      $page_info nodes { id title url isDraft author { login } $reviews events: $events }
     } }
   }"
 
   # 通常は PR の一覧と履歴を一括取得する。長い履歴だけ同じ PR の続きを取得する。
   local pr id kind cursor connection query extra
-  graphql_nodes "$pr_query" | while IFS= read -r pr; do
+  graphql_nodes "$pr_query" | jq -c 'select(.isDraft == false)' | while IFS= read -r pr; do
     id=$(jq -er .id <<< "$pr") || return 1
     for kind in reviews events; do
       cursor=$(jq -r --arg kind "$kind" '.[$kind].pageInfo | select(.hasNextPage) | .endCursor' <<< "$pr")
